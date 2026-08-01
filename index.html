@@ -24,7 +24,7 @@
         .hero-banner {
             position: relative;
             width: 100%;
-            height: 300px;
+            height: 280px;
             background: linear-gradient(to bottom, rgba(0,0,0,0.3), rgba(0,0,0,0.7)), url('cover.jpg') center/cover no-repeat;
             display: flex;
             flex-direction: column;
@@ -48,9 +48,8 @@
             font-size: 1rem;
             text-shadow: 1px 1px 4px rgba(0,0,0,0.8);
         }
-        .timer-badge {
+        .status-badge {
             background-color: #ffffff;
-            color: #d32f2f;
             padding: 8px 16px;
             border-radius: 20px;
             font-weight: bold;
@@ -59,6 +58,8 @@
             box-shadow: 0 2px 5px rgba(0,0,0,0.2);
             display: inline-block;
         }
+        .status-open { color: #2e7d32; }
+        .status-locked { color: #c62828; }
         .container {
             max-width: 900px;
             margin: 0 auto;
@@ -191,11 +192,6 @@
             margin-bottom: 12px;
             font-style: italic;
         }
-        .status-locked {
-            color: #c62828;
-            font-weight: bold;
-            font-size: 14px;
-        }
     </style>
 
     <!-- Firebase Realtime Database Module -->
@@ -215,17 +211,17 @@
         };
 
         const app = initializeApp(firebaseConfig);
-        const db = getDatabase(app);
+        const db = getDatabase(app, "https://colony-fantasy-default-rtdb.asia-southeast1.firebasedatabase.app");
 
         const ADMIN_PASSCODE = "3737";
 
         window.teams = [];
         window.uniquePlayers = {};
         window.history = [];
-        window.matchDeadline = "";
+        window.isTeamsLocked = false;
         window.expandedTeamName = null;
 
-        // Realtime Listener
+        // Listener
         const gameRef = ref(db, 'colonyGame');
         onValue(gameRef, (snapshot) => {
             const data = snapshot.val();
@@ -233,18 +229,17 @@
                 window.teams = data.teams || [];
                 window.uniquePlayers = data.uniquePlayers || {};
                 window.history = data.history || [];
-                window.matchDeadline = data.matchDeadline || "";
+                window.isTeamsLocked = data.isTeamsLocked || false;
             } else {
                 window.teams = [];
                 window.uniquePlayers = {};
+                window.isTeamsLocked = false;
             }
             updateDatalist();
             renderPlayerInputs();
             updateLeaderboard();
             renderHistory();
-            checkDeadlineStatus();
-        }, (error) => {
-            alert("Database Error: " + error.message);
+            updateLockStatusBadge();
         });
 
         function syncToFirebase() {
@@ -252,43 +247,27 @@
                 teams: window.teams,
                 uniquePlayers: window.uniquePlayers,
                 history: window.history,
-                matchDeadline: window.matchDeadline
+                isTeamsLocked: window.isTeamsLocked
             }).catch((err) => {
-                alert("Failed to save to database: " + err.message);
+                alert("Failed to sync to database: " + err.message);
             });
         }
 
-        function isLocked() {
-            if (!window.matchDeadline) return false;
-            return new Date().getTime() > new Date(window.matchDeadline).getTime();
-        }
+        function updateLockStatusBadge() {
+            const badge = document.getElementById('lockStatusBadge');
+            const toggleBtn = document.getElementById('toggleLockBtn');
+            if (!badge) return;
 
-        function checkDeadlineStatus() {
-            const timerEl = document.getElementById('lockTimerDisplay');
-            if (!timerEl) return;
-
-            if (!window.matchDeadline) {
-                timerEl.innerHTML = "⏳ No match deadline set";
-                return;
-            }
-
-            const now = new Date().getTime();
-            const deadlineTime = new Date(window.matchDeadline).getTime();
-            const diff = deadlineTime - now;
-
-            if (diff <= 0) {
-                timerEl.innerHTML = "🔒 <strong>TEAMS LOCKED (Match Started)</strong>";
-                timerEl.className = "timer-badge status-locked";
+            if (window.isTeamsLocked) {
+                badge.innerHTML = "🔒 Teams Locked (Passcode Required to Edit)";
+                badge.className = "status-badge status-locked";
+                if (toggleBtn) toggleBtn.innerText = "🔓 Unlock Teams";
             } else {
-                const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-                const hours = Math.floor(diff / (1000 * 60 * 60));
-                const secs = Math.floor((diff % (1000 * 60)) / 1000);
-                timerEl.innerHTML = `⏳ Lock in: <strong>${hours}h ${mins}m ${secs}s</strong>`;
-                timerEl.className = "timer-badge";
+                badge.innerHTML = "🟢 Team Changes Open";
+                badge.className = "status-badge status-open";
+                if (toggleBtn) toggleBtn.innerText = "🔒 Lock Teams";
             }
         }
-
-        setInterval(checkDeadlineStatus, 1000);
 
         function formatName(name) {
             return name.trim().toLowerCase().replace(/\s+/g, ' ');
@@ -298,32 +277,27 @@
             return name.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
         }
 
-        window.setDeadline = function() {
-            const pass = prompt("🔑 Enter Admin Passcode to set deadline:");
+        window.toggleTeamLock = function() {
+            const pass = prompt("🔑 Enter Admin Passcode to change lock status:");
             if (pass !== ADMIN_PASSCODE) {
-                alert("❌ Incorrect Admin Passcode!");
+                alert("❌ Incorrect Passcode!");
                 return;
             }
-
-            const input = document.getElementById('deadlineInput').value;
-            if (!input) {
-                alert("Please pick a valid date and time.");
-                return;
-            }
-            window.matchDeadline = input;
+            window.isTeamsLocked = !window.isTeamsLocked;
             syncToFirebase();
-            alert("Match deadline updated successfully!");
+            alert(window.isTeamsLocked ? "🔒 Teams are now LOCKED!" : "🔓 Teams are now UNLOCKED!");
         };
 
         window.addOrUpdateTeam = function(e) {
-            if (e) {
-                e.preventDefault();
-                e.stopPropagation();
-            }
+            if (e) e.preventDefault();
 
-            if (isLocked()) {
-                alert("🔒 Teams are locked! The match deadline has passed.");
-                return false;
+            // If locked, require passcode to submit/edit team
+            if (window.isTeamsLocked) {
+                const pass = prompt("🔒 Teams are locked! Enter Passcode to add/edit team:");
+                if (pass !== ADMIN_PASSCODE) {
+                    alert("❌ Incorrect Passcode! Changes cancelled.");
+                    return;
+                }
             }
 
             const name = document.getElementById('friendName').value.trim();
@@ -334,12 +308,12 @@
 
             if (!name || !p1 || !p2 || !p3 || !p4) {
                 alert("Please fill in the friend's name and all 4 players.");
-                return false;
+                return;
             }
 
             const newPlayersSorted = [p1, p2, p3, p4].sort().join(',');
 
-            // Prevent identical duplicate teams
+            // Prevent duplicate team selection
             const duplicateTeam = window.teams.find(t => {
                 if (t.name.toLowerCase() === name.toLowerCase()) return false;
                 const existingSorted = [...t.players].sort().join(',');
@@ -348,7 +322,7 @@
 
             if (duplicateTeam) {
                 alert(`⚠️ Duplicate Team Error!\n\nAll 4 players you selected are identical to ${duplicateTeam.name}'s team. Please change at least 1 player!`);
-                return false;
+                return;
             }
 
             const teamPlayers = [p1, p2, p3, p4];
@@ -381,21 +355,13 @@
                 if (msg) msg.innerText = '';
             }, 3000);
 
-            // Instant UI Render
             updateDatalist();
             renderPlayerInputs();
             updateLeaderboard();
-            
-            // Database Sync
             syncToFirebase();
-            return false;
         };
 
         window.loadTeamForEdit = function(teamName) {
-            if (isLocked()) {
-                alert("🔒 Teams are locked! The match deadline has passed.");
-                return;
-            }
             const team = window.teams.find(t => t.name === teamName);
             if (!team) return;
 
@@ -481,11 +447,9 @@
                 mainRow.onclick = () => window.toggleDetails(team.name);
                 const arrow = (window.expandedTeamName === team.name) ? '▼' : '▶';
 
-                const editBtnHTML = !isLocked() ? `<button class="edit-btn" onclick="event.stopPropagation(); window.loadTeamForEdit('${team.name}')">✏️ Edit</button>` : '';
-
                 mainRow.innerHTML = `
                     <td>${index + 1}</td>
-                    <td>${arrow} ${team.name} ${editBtnHTML}</td>
+                    <td>${arrow} ${team.name} <button class="edit-btn" onclick="event.stopPropagation(); window.loadTeamForEdit('${team.name}')">✏️ Edit</button></td>
                     <td><strong>${team.score}</strong></td>
                 `;
                 tbody.appendChild(mainRow);
@@ -549,7 +513,7 @@
 
             window.teams = [];
             window.uniquePlayers = {};
-            window.matchDeadline = "";
+            window.isTeamsLocked = false;
 
             syncToFirebase();
             alert(`🎉 ${matchTitle} archived into history! All teams cleared for the new game.`);
@@ -585,7 +549,7 @@
     <div class="hero-banner">
         <h1>Colony Sattebaaz Champion</h1>
         <p>1 Run = 1 Point | Real-Time Sync Enabled ⚡</p>
-        <div id="lockTimerDisplay" class="timer-badge">⏳ Checking deadline...</div>
+        <div id="lockStatusBadge" class="status-badge status-open">🟢 Team Changes Open</div>
     </div>
 
     <div class="container">
@@ -593,22 +557,20 @@
         <!-- Add / Edit Team Form -->
         <div class="card" id="teamFormCard">
             <h2>1. Add / Edit Friend's Team</h2>
-            <form onsubmit="return window.addOrUpdateTeam(event)">
-                <datalist id="playerPool"></datalist>
-                <input type="text" id="friendName" placeholder="Friend's Name (e.g., Gaurav)" required>
-                <input type="text" id="player1" list="playerPool" placeholder="Player 1" required>
-                <input type="text" id="player2" list="playerPool" placeholder="Player 2" required>
-                <input type="text" id="player3" list="playerPool" placeholder="Player 3" required>
-                <input type="text" id="player4" list="playerPool" placeholder="Player 4" required>
-                <button type="submit" id="submitBtn">Add / Update Team</button>
-            </form>
+            <datalist id="playerPool"></datalist>
+            <input type="text" id="friendName" placeholder="Friend's Name (e.g., Gaurav)">
+            <input type="text" id="player1" list="playerPool" placeholder="Player 1">
+            <input type="text" id="player2" list="playerPool" placeholder="Player 2">
+            <input type="text" id="player3" list="playerPool" placeholder="Player 3">
+            <input type="text" id="player4" list="playerPool" placeholder="Player 4">
+            <button type="button" id="submitBtn" onclick="window.addOrUpdateTeam(event)">Add / Update Team</button>
             <p id="teamMsg" style="color: green; font-size: 14px; margin-top: 6px;"></p>
         </div>
 
         <!-- Leaderboard -->
         <div class="card">
             <h2>🏆 Live Leaderboard</h2>
-            <p class="hint">👆 Click friend name to expand details. Click "✏️ Edit" to change squad before deadline.</p>
+            <p class="hint">👆 Click friend name to expand details. Click "✏️ Edit" to change squad.</p>
             <table id="leaderboardTable">
                 <thead>
                     <tr>
@@ -635,9 +597,8 @@
         <!-- Admin Controls -->
         <div class="card full-width">
             <h2>⚙️ Admin Controls (Passcode Protected)</h2>
-            <div style="display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; align-items: center;">
-                <input type="datetime-local" id="deadlineInput" style="max-width: 250px;">
-                <button type="button" class="secondary" onclick="window.setDeadline()" style="max-width: 200px; margin: 0;">Set Lock Deadline</button>
+            <div style="display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; align-items: center;">
+                <button type="button" id="toggleLockBtn" class="secondary" onclick="window.toggleTeamLock()" style="max-width: 250px; margin: 0;">🔒 Lock Teams</button>
             </div>
             <hr style="margin: 20px 0; border: 0; border-top: 1px solid #eee;">
             <button type="button" class="danger" onclick="window.startNewGame()" style="max-width: 350px;">🚀 Start New Game (Archive & Clear Teams)</button>
