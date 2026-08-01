@@ -198,7 +198,7 @@
         }
     </style>
 
-    <!-- Firebase Realtime Database SDK -->
+    <!-- Firebase Realtime Database Module -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
@@ -215,41 +215,34 @@
         };
 
         const app = initializeApp(firebaseConfig);
-        const db = getDatabase(app);
+        const db = getDatabase(app, "https://colony-fantasy-default-rtdb.asia-southeast1.firebasedatabase.app");
 
         const ADMIN_PASSCODE = "3737";
 
         window.teams = [];
         window.uniquePlayers = {};
-        window.history = [];
+        window.matchHistory = []; // Fixed: Renamed from history to matchHistory
         window.matchDeadline = "";
         window.expandedTeamName = null;
 
-        // Force clear "Checking deadline..." display immediately
-        setTimeout(() => {
-            const timerEl = document.getElementById('lockTimerDisplay');
-            if (timerEl && timerEl.innerText.includes("Checking")) {
-                checkDeadlineStatus();
-            }
-        }, 1500);
-
-        // Realtime Listener
+        // Realtime Database Listener
         const gameRef = ref(db, 'colonyGame');
         onValue(gameRef, (snapshot) => {
             const data = snapshot.val();
             if (data) {
                 window.teams = data.teams || [];
                 window.uniquePlayers = data.uniquePlayers || {};
-                window.history = data.history || [];
+                window.matchHistory = data.matchHistory || [];
                 window.matchDeadline = data.matchDeadline || "";
+            } else {
+                window.teams = [];
+                window.uniquePlayers = {};
+                window.matchHistory = [];
             }
             updateDatalist();
             renderPlayerInputs();
             updateLeaderboard();
             renderHistory();
-            checkDeadlineStatus();
-        }, (err) => {
-            console.error("Firebase Read Error:", err);
             checkDeadlineStatus();
         });
 
@@ -257,10 +250,10 @@
             set(ref(db, 'colonyGame'), {
                 teams: window.teams,
                 uniquePlayers: window.uniquePlayers,
-                history: window.history,
+                matchHistory: window.matchHistory,
                 matchDeadline: window.matchDeadline
             }).catch((err) => {
-                alert("Database Sync Error: " + err.message);
+                alert("Failed to sync to database: " + err.message);
             });
         }
 
@@ -306,9 +299,9 @@
         }
 
         window.setDeadline = function() {
-            const pass = prompt("🔑 Enter Admin Passcode to set deadline:");
+            const pass = prompt("🔑 Enter Admin Passcode to set/change deadline:");
             if (pass !== ADMIN_PASSCODE) {
-                alert("❌ Incorrect Admin Passcode!");
+                alert("❌ Incorrect Passcode!");
                 return;
             }
 
@@ -319,7 +312,7 @@
             }
             window.matchDeadline = input;
             syncToFirebase();
-            alert("Match deadline updated!");
+            alert("Match deadline updated successfully!");
         };
 
         window.addOrUpdateTeam = function() {
@@ -386,12 +379,9 @@
                 if (msg) msg.innerText = '';
             }, 3000);
 
-            // Render local updates instantly
             updateDatalist();
             renderPlayerInputs();
             updateLeaderboard();
-            
-            // Push sync to cloud
             syncToFirebase();
         };
 
@@ -542,8 +532,8 @@
                 standings: leaderboardData
             };
 
-            if (!window.history) window.history = [];
-            window.history.unshift(archivedRecord);
+            if (!window.matchHistory) window.matchHistory = [];
+            window.matchHistory.unshift(archivedRecord);
 
             window.teams = [];
             window.uniquePlayers = {};
@@ -558,12 +548,12 @@
             if (!container) return;
             container.innerHTML = '';
 
-            if (!window.history || window.history.length === 0) {
+            if (!window.matchHistory || window.matchHistory.length === 0) {
                 container.innerHTML = '<p style="color:#777;">No previous match records found.</p>';
                 return;
             }
 
-            window.history.forEach(item => {
+            window.matchHistory.forEach(item => {
                 const div = document.createElement('div');
                 div.className = 'history-item';
                 let standingsList = item.standings.map((s, i) => `${i + 1}. ${s.name} (${s.score} pts)`).join(' | ');
