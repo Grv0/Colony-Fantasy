@@ -217,15 +217,13 @@
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
 
-        // --- ADMIN CONFIGURATION ---
-        const ADMIN_PASSCODE = "3737"; // 🔑 Passcode set to 3737
+        const ADMIN_PASSCODE = "3737";
 
         window.teams = [];
         window.uniquePlayers = {};
         window.history = [];
         window.matchDeadline = "";
         window.expandedTeamName = null;
-        window.editingTeamName = null;
 
         // Realtime Listener
         const gameRef = ref(db, 'colonyGame');
@@ -236,12 +234,17 @@
                 window.uniquePlayers = data.uniquePlayers || {};
                 window.history = data.history || [];
                 window.matchDeadline = data.matchDeadline || "";
+            } else {
+                window.teams = [];
+                window.uniquePlayers = {};
             }
             updateDatalist();
             renderPlayerInputs();
             updateLeaderboard();
             renderHistory();
             checkDeadlineStatus();
+        }, (error) => {
+            alert("Database Error: " + error.message);
         });
 
         function syncToFirebase() {
@@ -250,6 +253,8 @@
                 uniquePlayers: window.uniquePlayers,
                 history: window.history,
                 matchDeadline: window.matchDeadline
+            }).catch((err) => {
+                alert("Failed to save to database: " + err.message);
             });
         }
 
@@ -260,6 +265,7 @@
 
         function checkDeadlineStatus() {
             const timerEl = document.getElementById('lockTimerDisplay');
+            if (!timerEl) return;
 
             if (!window.matchDeadline) {
                 timerEl.innerHTML = "⏳ No match deadline set";
@@ -310,11 +316,14 @@
         };
 
         window.addOrUpdateTeam = function(e) {
-            if (e) e.preventDefault();
+            if (e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
 
             if (isLocked()) {
                 alert("🔒 Teams are locked! The match deadline has passed.");
-                return;
+                return false;
             }
 
             const name = document.getElementById('friendName').value.trim();
@@ -325,12 +334,12 @@
 
             if (!name || !p1 || !p2 || !p3 || !p4) {
                 alert("Please fill in the friend's name and all 4 players.");
-                return;
+                return false;
             }
 
             const newPlayersSorted = [p1, p2, p3, p4].sort().join(',');
 
-            // Prevent duplicate team selection (all 4 players identical to another registered team)
+            // Prevent identical duplicate teams
             const duplicateTeam = window.teams.find(t => {
                 if (t.name.toLowerCase() === name.toLowerCase()) return false;
                 const existingSorted = [...t.players].sort().join(',');
@@ -339,11 +348,10 @@
 
             if (duplicateTeam) {
                 alert(`⚠️ Duplicate Team Error!\n\nAll 4 players you selected are identical to ${duplicateTeam.name}'s team. Please change at least 1 player!`);
-                return;
+                return false;
             }
 
             const teamPlayers = [p1, p2, p3, p4];
-
             const existingIndex = window.teams.findIndex(t => t.name.toLowerCase() === name.toLowerCase());
 
             if (existingIndex !== -1) {
@@ -360,20 +368,27 @@
                 }
             });
 
+            // Clear inputs
             document.getElementById('friendName').value = '';
             document.getElementById('player1').value = '';
             document.getElementById('player2').value = '';
             document.getElementById('player3').value = '';
             document.getElementById('player4').value = '';
             document.getElementById('submitBtn').innerText = "Add / Update Team";
-            window.editingTeamName = null;
 
-            setTimeout(() => document.getElementById('teamMsg').innerText = '', 3000);
+            setTimeout(() => {
+                const msg = document.getElementById('teamMsg');
+                if (msg) msg.innerText = '';
+            }, 3000);
 
+            // Instant UI Render
             updateDatalist();
             renderPlayerInputs();
             updateLeaderboard();
+            
+            // Database Sync
             syncToFirebase();
+            return false;
         };
 
         window.loadTeamForEdit = function(teamName) {
@@ -391,7 +406,6 @@
             document.getElementById('player4').value = displayFormat(team.players[3] || '');
             
             document.getElementById('submitBtn').innerText = `✏️ Save Edit for ${team.name}`;
-            window.editingTeamName = teamName;
             window.scrollTo({ top: 0, behavior: 'smooth' });
         };
 
@@ -510,7 +524,6 @@
             const matchTitle = prompt("Enter Match Name (e.g., Match 1 - IND vs PAK):");
             if (!matchTitle) return;
 
-            // Calculate winner
             let leaderboardData = window.teams.map(team => {
                 let totalScore = 0;
                 team.players.forEach(player => {
@@ -534,7 +547,6 @@
             if (!window.history) window.history = [];
             window.history.unshift(archivedRecord);
 
-            // Clear current game teams & players only
             window.teams = [];
             window.uniquePlayers = {};
             window.matchDeadline = "";
@@ -578,16 +590,18 @@
 
     <div class="container">
         
-        <!-- Add / Edit Team -->
+        <!-- Add / Edit Team Form -->
         <div class="card" id="teamFormCard">
             <h2>1. Add / Edit Friend's Team</h2>
-            <datalist id="playerPool"></datalist>
-            <input type="text" id="friendName" placeholder="Friend's Name (e.g., Gaurav)" required>
-            <input type="text" id="player1" list="playerPool" placeholder="Player 1" required>
-            <input type="text" id="player2" list="playerPool" placeholder="Player 2" required>
-            <input type="text" id="player3" list="playerPool" placeholder="Player 3" required>
-            <input type="text" id="player4" list="playerPool" placeholder="Player 4" required>
-            <button type="button" id="submitBtn" onclick="window.addOrUpdateTeam(event)">Add / Update Team</button>
+            <form onsubmit="return window.addOrUpdateTeam(event)">
+                <datalist id="playerPool"></datalist>
+                <input type="text" id="friendName" placeholder="Friend's Name (e.g., Gaurav)" required>
+                <input type="text" id="player1" list="playerPool" placeholder="Player 1" required>
+                <input type="text" id="player2" list="playerPool" placeholder="Player 2" required>
+                <input type="text" id="player3" list="playerPool" placeholder="Player 3" required>
+                <input type="text" id="player4" list="playerPool" placeholder="Player 4" required>
+                <button type="submit" id="submitBtn">Add / Update Team</button>
+            </form>
             <p id="teamMsg" style="color: green; font-size: 14px; margin-top: 6px;"></p>
         </div>
 
