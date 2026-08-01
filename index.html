@@ -10,6 +10,8 @@
             --bg-color: #f1f8e9;
             --card-bg: #ffffff;
             --text-color: #333333;
+            --danger-color: #c62828;
+            --warning-color: #ef6c00;
         }
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -22,19 +24,19 @@
         .hero-banner {
             position: relative;
             width: 100%;
-            height: 320px;
+            height: 300px;
             background: linear-gradient(to bottom, rgba(0,0,0,0.3), rgba(0,0,0,0.7)), url('cover.jpg') center/cover no-repeat;
             display: flex;
             flex-direction: column;
             justify-content: flex-end;
             align-items: center;
-            padding-bottom: 25px;
+            padding-bottom: 20px;
             box-shadow: 0 4px 10px rgba(0,0,0,0.15);
-            margin-bottom: 25px;
+            margin-bottom: 20px;
         }
         .hero-banner h1 {
             color: #ffffff;
-            font-size: 2.8rem;
+            font-size: 2.5rem;
             margin: 0;
             text-transform: uppercase;
             letter-spacing: 1.5px;
@@ -42,22 +44,31 @@
         }
         .hero-banner p {
             color: #f0f0f0;
-            margin: 8px 0 0 0;
+            margin: 6px 0 0 0;
             font-size: 1rem;
             text-shadow: 1px 1px 4px rgba(0,0,0,0.8);
         }
+        .timer-badge {
+            background-color: #ffffff;
+            color: #d32f2f;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 14px;
+            margin-top: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            display: inline-block;
+        }
         .container {
-            max-width: 850px;
+            max-width: 900px;
             margin: 0 auto;
-            padding: 0 20px;
+            padding: 0 15px;
             display: grid;
             grid-template-columns: 1fr;
             gap: 20px;
         }
         @media (min-width: 768px) {
             .container { grid-template-columns: 1fr 1fr; }
-            .hero-banner { height: 380px; }
-            .hero-banner h1 { font-size: 3.2rem; }
         }
         .card {
             background-color: var(--card-bg);
@@ -65,19 +76,21 @@
             border-radius: 12px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.08);
         }
+        .full-width { grid-column: 1 / -1; }
         .card h2 {
             margin-top: 0;
             color: var(--primary-color);
             border-bottom: 2px solid var(--primary-color);
             padding-bottom: 10px;
+            font-size: 1.3rem;
         }
-        input {
+        input, select {
             width: 90%;
             padding: 10px;
-            margin: 8px 0;
+            margin: 6px 0;
             border: 1px solid #ccc;
             border-radius: 6px;
-            font-size: 16px;
+            font-size: 15px;
             box-sizing: border-box;
         }
         button {
@@ -88,16 +101,20 @@
             margin-top: 10px;
             border-radius: 6px;
             cursor: pointer;
-            font-size: 16px;
+            font-size: 15px;
             font-weight: bold;
             width: 90%;
         }
         button:hover { background-color: #1b5e20; }
+        button.danger { background-color: var(--danger-color); }
+        button.danger:hover { background-color: #b71c1c; }
+        button.secondary { background-color: var(--warning-color); }
+        button.secondary:hover { background-color: #e65100; }
         .player-score-row {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 10px;
+            margin-bottom: 8px;
             background: #f9f9f9;
             padding: 10px 15px;
             border-radius: 6px;
@@ -110,16 +127,17 @@
         table {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 15px;
+            margin-top: 10px;
         }
         th, td {
-            padding: 12px;
+            padding: 10px;
             text-align: left;
             border-bottom: 1px solid #ddd;
         }
         th {
             background-color: var(--primary-color);
             color: white;
+            font-size: 14px;
         }
         .clickable-row {
             cursor: pointer;
@@ -134,26 +152,49 @@
             background-color: #fafafa;
             padding: 10px;
             border-radius: 6px;
-            font-size: 14px;
+            font-size: 13px;
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 8px;
+            gap: 6px;
             border: 1px dashed #ccc;
         }
         .team-details-container div {
             background: #fff;
-            padding: 8px;
+            padding: 6px;
             border-radius: 4px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
             display: flex;
             justify-content: space-between;
         }
+        .edit-btn {
+            background: #ff9800;
+            color: white;
+            border: none;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            cursor: pointer;
+            margin-left: 6px;
+        }
+        .history-item {
+            background: #f5f5f5;
+            border-left: 4px solid var(--primary-color);
+            padding: 12px;
+            margin-bottom: 12px;
+            text-align: left;
+            border-radius: 4px;
+        }
+        .history-item h3 { margin: 0 0 6px 0; color: #2e7d32; }
         .hint {
             font-size: 12px;
-            color: #555;
-            margin-top: -10px;
-            margin-bottom: 15px;
+            color: #666;
+            margin-top: -6px;
+            margin-bottom: 12px;
             font-style: italic;
+        }
+        .status-locked {
+            color: #c62828;
+            font-weight: bold;
+            font-size: 14px;
         }
     </style>
 
@@ -178,30 +219,69 @@
 
         window.teams = [];
         window.uniquePlayers = {};
+        window.history = [];
+        window.matchDeadline = "";
         window.expandedTeamName = null;
+        window.editingTeamName = null;
 
-        const gameRef = ref(db, 'gameData');
+        // Realtime Listener
+        const gameRef = ref(db, 'colonyGame');
         onValue(gameRef, (snapshot) => {
             const data = snapshot.val();
             if (data) {
                 window.teams = data.teams || [];
                 window.uniquePlayers = data.uniquePlayers || {};
+                window.history = data.history || [];
+                window.matchDeadline = data.matchDeadline || "";
             }
             updateDatalist();
             renderPlayerInputs();
             updateLeaderboard();
+            renderHistory();
+            checkDeadlineStatus();
         });
 
         function syncToFirebase() {
-            set(ref(db, 'gameData'), {
+            set(ref(db, 'colonyGame'), {
                 teams: window.teams,
-                uniquePlayers: window.uniquePlayers
-            }).then(() => {
-                updateDatalist();
-                renderPlayerInputs();
-                updateLeaderboard();
+                uniquePlayers: window.uniquePlayers,
+                history: window.history,
+                matchDeadline: window.matchDeadline
             });
         }
+
+        function isLocked() {
+            if (!window.matchDeadline) return false;
+            return new Date().getTime() > new Date(window.matchDeadline).getTime();
+        }
+
+        function checkDeadlineStatus() {
+            const timerEl = document.getElementById('lockTimerDisplay');
+            const formSection = document.getElementById('teamFormCard');
+
+            if (!window.matchDeadline) {
+                timerEl.innerHTML = "⏳ No match deadline set";
+                formSection.style.opacity = "1";
+                return;
+            }
+
+            const now = new Date().getTime();
+            const deadlineTime = new Date(window.matchDeadline).getTime();
+            const diff = deadlineTime - now;
+
+            if (diff <= 0) {
+                timerEl.innerHTML = "🔒 <strong>TEAMS LOCKED (Match Started)</strong>";
+                timerEl.className = "timer-badge status-locked";
+            } else {
+                const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                const hours = Math.floor(diff / (1000 * 60 * 60));
+                const secs = Math.floor((diff % (1000 * 60)) / 1000);
+                timerEl.innerHTML = `⏳ Lock in: <strong>${hours}h ${mins}m ${secs}s</strong>`;
+                timerEl.className = "timer-badge";
+            }
+        }
+
+        setInterval(checkDeadlineStatus, 1000);
 
         function formatName(name) {
             return name.trim().toLowerCase().replace(/\s+/g, ' ');
@@ -211,8 +291,24 @@
             return name.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
         }
 
-        window.addTeam = function(e) {
+        window.setDeadline = function() {
+            const input = document.getElementById('deadlineInput').value;
+            if (!input) {
+                alert("Please pick a valid date and time.");
+                return;
+            }
+            window.matchDeadline = input;
+            syncToFirebase();
+            alert("Match deadline updated!");
+        };
+
+        window.addOrUpdateTeam = function(e) {
             if (e) e.preventDefault();
+
+            if (isLocked()) {
+                alert("🔒 Teams are locked! The match deadline has passed.");
+                return;
+            }
 
             const name = document.getElementById('friendName').value.trim();
             const p1 = formatName(document.getElementById('player1').value);
@@ -226,7 +322,19 @@
             }
 
             const teamPlayers = [p1, p2, p3, p4];
-            window.teams.push({ name: name, players: teamPlayers });
+
+            // Check if team already exists
+            const existingIndex = window.teams.findIndex(t => t.name.toLowerCase() === name.toLowerCase());
+
+            if (existingIndex !== -1) {
+                // Update existing team
+                window.teams[existingIndex].players = teamPlayers;
+                document.getElementById('teamMsg').innerText = `Updated ${name}'s team!`;
+            } else {
+                // Add new team
+                window.teams.push({ name: name, players: teamPlayers });
+                document.getElementById('teamMsg').innerText = `${name}'s team added!`;
+            }
 
             teamPlayers.forEach(player => {
                 if (!(player in window.uniquePlayers)) {
@@ -234,22 +342,40 @@
                 }
             });
 
+            // Reset Form Inputs
             document.getElementById('friendName').value = '';
             document.getElementById('player1').value = '';
             document.getElementById('player2').value = '';
             document.getElementById('player3').value = '';
             document.getElementById('player4').value = '';
+            document.getElementById('submitBtn').innerText = "Add / Update Team";
+            window.editingTeamName = null;
 
-            document.getElementById('teamMsg').innerText = `${name}'s team added!`;
             setTimeout(() => document.getElementById('teamMsg').innerText = '', 3000);
 
-            // Instant local render so it shows up immediately
             updateDatalist();
             renderPlayerInputs();
             updateLeaderboard();
-
-            // Sync to cloud
             syncToFirebase();
+        };
+
+        window.loadTeamForEdit = function(teamName) {
+            if (isLocked()) {
+                alert("🔒 Teams are locked! The match deadline has passed.");
+                return;
+            }
+            const team = window.teams.find(t => t.name === teamName);
+            if (!team) return;
+
+            document.getElementById('friendName').value = team.name;
+            document.getElementById('player1').value = displayFormat(team.players[0] || '');
+            document.getElementById('player2').value = displayFormat(team.players[1] || '');
+            document.getElementById('player3').value = displayFormat(team.players[2] || '');
+            document.getElementById('player4').value = displayFormat(team.players[3] || '');
+            
+            document.getElementById('submitBtn').innerText = `✏️ Save Edit for ${team.name}`;
+            window.editingTeamName = teamName;
+            window.scrollTo({ top: 0, behavior: 'smooth' });
         };
 
         function updateDatalist() {
@@ -269,7 +395,7 @@
             container.innerHTML = '';
             const players = Object.keys(window.uniquePlayers);
             if (players.length === 0) {
-                container.innerHTML = '<p>Add teams first to see the players here.</p>';
+                container.innerHTML = '<p>Add teams first to see player scoring options.</p>';
                 return;
             }
             players.forEach(player => {
@@ -324,9 +450,11 @@
                 mainRow.onclick = () => window.toggleDetails(team.name);
                 const arrow = (window.expandedTeamName === team.name) ? '▼' : '▶';
 
+                const editBtnHTML = !isLocked() ? `<button class="edit-btn" onclick="event.stopPropagation(); window.loadTeamForEdit('${team.name}')">✏️ Edit</button>` : '';
+
                 mainRow.innerHTML = `
                     <td>${index + 1}</td>
-                    <td>${arrow} ${team.name}</td>
+                    <td>${arrow} ${team.name} ${editBtnHTML}</td>
                     <td><strong>${team.score}</strong></td>
                 `;
                 tbody.appendChild(mainRow);
@@ -339,7 +467,7 @@
                     detailsHTML += `
                         <div>
                             <span>${displayFormat(player)}</span>
-                            <strong>${window.uniquePlayers[player] || 0}</strong>
+                            <strong>${window.uniquePlayers[player] || 0} pts</strong>
                         </div>
                     `;
                 });
@@ -349,6 +477,72 @@
                 tbody.appendChild(detailsRow);
             });
         }
+
+        window.archiveAndResetMatch = function() {
+            if (window.teams.length === 0) {
+                alert("There are no teams to save to history!");
+                return;
+            }
+
+            const matchTitle = prompt("Enter Match Title (e.g., Match 1 - IND vs PAK):");
+            if (!matchTitle) return;
+
+            // Calculate winner
+            let leaderboardData = window.teams.map(team => {
+                let totalScore = 0;
+                team.players.forEach(player => {
+                    totalScore += window.uniquePlayers[player] || 0;
+                });
+                return { name: team.name, score: totalScore };
+            });
+
+            leaderboardData.sort((a, b) => b.score - a.score);
+            const winnerName = leaderboardData[0] ? leaderboardData[0].name : "N/A";
+            const winnerScore = leaderboardData[0] ? leaderboardData[0].score : 0;
+
+            const archivedRecord = {
+                title: matchTitle,
+                date: new Date().toLocaleDateString(),
+                winner: winnerName,
+                topScore: winnerScore,
+                standings: leaderboardData
+            };
+
+            if (!window.history) window.history = [];
+            window.history.unshift(archivedRecord);
+
+            // Clear current match data
+            window.teams = [];
+            window.uniquePlayers = {};
+            window.matchDeadline = "";
+
+            syncToFirebase();
+            alert(`🎉 ${matchTitle} saved to history! App is ready for the next match.`);
+        };
+
+        function renderHistory() {
+            const container = document.getElementById('historyContainer');
+            if (!container) return;
+            container.innerHTML = '';
+
+            if (!window.history || window.history.length === 0) {
+                container.innerHTML = '<p style="color:#777;">No previous match records found.</p>';
+                return;
+            }
+
+            window.history.forEach(item => {
+                const div = document.createElement('div');
+                div.className = 'history-item';
+                let standingsList = item.standings.map((s, i) => `${i + 1}. ${s.name} (${s.score} pts)`).join(' | ');
+                
+                div.innerHTML = `
+                    <h3>🏆 ${item.title} (${item.date})</h3>
+                    <p style="margin: 4px 0;">👑 <strong>Winner:</strong> ${item.winner} (${item.topScore} pts)</p>
+                    <p style="margin: 4px 0; font-size: 13px; color: #555;"><strong>Final Ranks:</strong> ${standingsList}</p>
+                `;
+                container.appendChild(div);
+            });
+        }
     </script>
 </head>
 <body>
@@ -356,24 +550,28 @@
     <div class="hero-banner">
         <h1>Colony Sattebaaz Champion</h1>
         <p>1 Run = 1 Point | Real-Time Sync Enabled ⚡</p>
+        <div id="lockTimerDisplay" class="timer-badge">⏳ Checking deadline...</div>
     </div>
 
     <div class="container">
-        <div class="card">
-            <h2>1. Add a Friend's Team</h2>
+        
+        <!-- 1. Add / Edit Team -->
+        <div class="card" id="teamFormCard">
+            <h2>1. Add / Edit Friend's Team</h2>
             <datalist id="playerPool"></datalist>
             <input type="text" id="friendName" placeholder="Friend's Name (e.g., Gaurav)" required>
             <input type="text" id="player1" list="playerPool" placeholder="Player 1" required>
             <input type="text" id="player2" list="playerPool" placeholder="Player 2" required>
             <input type="text" id="player3" list="playerPool" placeholder="Player 3" required>
             <input type="text" id="player4" list="playerPool" placeholder="Player 4" required>
-            <button type="button" onclick="window.addTeam(event)">Add Team</button>
-            <p id="teamMsg" style="color: green; font-size: 14px;"></p>
+            <button type="button" id="submitBtn" onclick="window.addOrUpdateTeam(event)">Add / Update Team</button>
+            <p id="teamMsg" style="color: green; font-size: 14px; margin-top: 6px;"></p>
         </div>
 
+        <!-- Leaderboard -->
         <div class="card">
-            <h2>🏆 Leaderboard</h2>
-            <p class="hint">👆 Click on a friend's name to see their players and scores!</p>
+            <h2>🏆 Live Leaderboard</h2>
+            <p class="hint">👆 Click friend name to expand details. Click "✏️ Edit" to change squad before deadline.</p>
             <table id="leaderboardTable">
                 <thead>
                     <tr>
@@ -388,13 +586,34 @@
             </table>
         </div>
 
-        <div class="card" style="grid-column: 1 / -1;">
-            <h2>2. Update Player Runs</h2>
-            <p style="font-size: 14px; color: #666;">Enter a score once. Updates live on everyone's phones!</p>
+        <!-- 2. Update Runs -->
+        <div class="card full-width">
+            <h2>2. Update Live Player Runs</h2>
+            <p style="font-size: 13px; color: #666;">Scores typed here update instantly on every friend's phone.</p>
             <div id="playerScoresContainer">
-                <p>Add teams first to see the unique players here.</p>
+                <p>Add teams first to see the players here.</p>
             </div>
         </div>
+
+        <!-- Admin / Match Controls -->
+        <div class="card full-width">
+            <h2>⚙️ Match Deadline & Reset Controls</h2>
+            <div style="display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; align-items: center;">
+                <input type="datetime-local" id="deadlineInput" style="max-width: 250px;">
+                <button type="button" class="secondary" onclick="window.setDeadline()" style="max-width: 200px; margin: 0;">Set Match Deadline</button>
+            </div>
+            <hr style="margin: 20px 0; border: 0; border-top: 1px solid #eee;">
+            <button type="button" class="danger" onclick="window.archiveAndResetMatch()" style="max-width: 350px;">📜 Archive Match & Start New Game</button>
+        </div>
+
+        <!-- History Tab -->
+        <div class="card full-width">
+            <h2>📜 Past Matches History</h2>
+            <div id="historyContainer">
+                <p style="color:#777;">No previous match records found.</p>
+            </div>
+        </div>
+
     </div>
 
 </body>
