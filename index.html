@@ -321,17 +321,29 @@
                 return;
             }
 
+            const newPlayersSorted = [p1, p2, p3, p4].sort().join(',');
+
+            // Check if all 4 players match an existing team (excluding the team being edited)
+            const duplicateTeam = window.teams.find(t => {
+                if (t.name.toLowerCase() === name.toLowerCase()) return false; // Ignore current user if updating
+                const existingSorted = [...t.players].sort().join(',');
+                return existingSorted === newPlayersSorted;
+            });
+
+            if (duplicateTeam) {
+                alert(`⚠️ Duplicate Team Error!\n\nAll 4 players you selected are identical to ${duplicateTeam.name}'s team. Please change at least 1 player!`);
+                return;
+            }
+
             const teamPlayers = [p1, p2, p3, p4];
 
-            // Check if team already exists
+            // Check if updating existing team
             const existingIndex = window.teams.findIndex(t => t.name.toLowerCase() === name.toLowerCase());
 
             if (existingIndex !== -1) {
-                // Update existing team
                 window.teams[existingIndex].players = teamPlayers;
                 document.getElementById('teamMsg').innerText = `Updated ${name}'s team!`;
             } else {
-                // Add new team
                 window.teams.push({ name: name, players: teamPlayers });
                 document.getElementById('teamMsg').innerText = `${name}'s team added!`;
             }
@@ -487,7 +499,6 @@
             const matchTitle = prompt("Enter Match Title (e.g., Match 1 - IND vs PAK):");
             if (!matchTitle) return;
 
-            // Calculate winner
             let leaderboardData = window.teams.map(team => {
                 let totalScore = 0;
                 team.players.forEach(player => {
@@ -511,7 +522,6 @@
             if (!window.history) window.history = [];
             window.history.unshift(archivedRecord);
 
-            // Clear current match data
             window.teams = [];
             window.uniquePlayers = {};
             window.matchDeadline = "";
@@ -555,7 +565,6 @@
 
     <div class="container">
         
-        <!-- 1. Add / Edit Team -->
         <div class="card" id="teamFormCard">
             <h2>1. Add / Edit Friend's Team</h2>
             <datalist id="playerPool"></datalist>
@@ -568,7 +577,6 @@
             <p id="teamMsg" style="color: green; font-size: 14px; margin-top: 6px;"></p>
         </div>
 
-        <!-- Leaderboard -->
         <div class="card">
             <h2>🏆 Live Leaderboard</h2>
             <p class="hint">👆 Click friend name to expand details. Click "✏️ Edit" to change squad before deadline.</p>
@@ -586,7 +594,6 @@
             </table>
         </div>
 
-        <!-- 2. Update Runs -->
         <div class="card full-width">
             <h2>2. Update Live Player Runs</h2>
             <p style="font-size: 13px; color: #666;">Scores typed here update instantly on every friend's phone.</p>
@@ -595,7 +602,6 @@
             </div>
         </div>
 
-        <!-- Admin / Match Controls -->
         <div class="card full-width">
             <h2>⚙️ Match Deadline & Reset Controls</h2>
             <div style="display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; align-items: center;">
@@ -606,7 +612,6 @@
             <button type="button" class="danger" onclick="window.archiveAndResetMatch()" style="max-width: 350px;">📜 Archive Match & Start New Game</button>
         </div>
 
-        <!-- History Tab -->
         <div class="card full-width">
             <h2>📜 Past Matches History</h2>
             <div id="historyContainer">
