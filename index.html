@@ -198,7 +198,7 @@
         }
     </style>
 
-    <!-- Firebase Realtime Database Module -->
+    <!-- Firebase Realtime Database SDK -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
@@ -215,7 +215,7 @@
         };
 
         const app = initializeApp(firebaseConfig);
-        const db = getDatabase(app, "https://colony-fantasy-default-rtdb.asia-southeast1.firebasedatabase.app");
+        const db = getDatabase(app);
 
         const ADMIN_PASSCODE = "3737";
 
@@ -225,7 +225,15 @@
         window.matchDeadline = "";
         window.expandedTeamName = null;
 
-        // Realtime Database Listener
+        // Force clear "Checking deadline..." display immediately
+        setTimeout(() => {
+            const timerEl = document.getElementById('lockTimerDisplay');
+            if (timerEl && timerEl.innerText.includes("Checking")) {
+                checkDeadlineStatus();
+            }
+        }, 1500);
+
+        // Realtime Listener
         const gameRef = ref(db, 'colonyGame');
         onValue(gameRef, (snapshot) => {
             const data = snapshot.val();
@@ -234,14 +242,14 @@
                 window.uniquePlayers = data.uniquePlayers || {};
                 window.history = data.history || [];
                 window.matchDeadline = data.matchDeadline || "";
-            } else {
-                window.teams = [];
-                window.uniquePlayers = {};
             }
             updateDatalist();
             renderPlayerInputs();
             updateLeaderboard();
             renderHistory();
+            checkDeadlineStatus();
+        }, (err) => {
+            console.error("Firebase Read Error:", err);
             checkDeadlineStatus();
         });
 
@@ -252,7 +260,7 @@
                 history: window.history,
                 matchDeadline: window.matchDeadline
             }).catch((err) => {
-                alert("Failed to sync to database: " + err.message);
+                alert("Database Sync Error: " + err.message);
             });
         }
 
@@ -267,6 +275,7 @@
 
             if (!window.matchDeadline) {
                 timerEl.innerHTML = "⏳ No match deadline set";
+                timerEl.className = "timer-badge";
                 return;
             }
 
@@ -275,7 +284,7 @@
             const diff = deadlineTime - now;
 
             if (diff <= 0) {
-                timerEl.innerHTML = "🔒 <strong>TEAMS LOCKED (Match Deadline Passed)</strong>";
+                timerEl.innerHTML = "🔒 <strong>TEAMS LOCKED (Deadline Passed)</strong>";
                 timerEl.className = "timer-badge status-locked";
             } else {
                 const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
@@ -297,9 +306,9 @@
         }
 
         window.setDeadline = function() {
-            const pass = prompt("🔑 Enter Admin Passcode to set/change deadline:");
+            const pass = prompt("🔑 Enter Admin Passcode to set deadline:");
             if (pass !== ADMIN_PASSCODE) {
-                alert("❌ Incorrect Passcode!");
+                alert("❌ Incorrect Admin Passcode!");
                 return;
             }
 
@@ -310,17 +319,14 @@
             }
             window.matchDeadline = input;
             syncToFirebase();
-            alert("Match deadline updated successfully!");
+            alert("Match deadline updated!");
         };
 
-        window.addOrUpdateTeam = function(e) {
-            if (e) e.preventDefault();
-
-            // Check if deadline passed
+        window.addOrUpdateTeam = function() {
             if (isLocked()) {
-                const pass = prompt("🔒 Match deadline has passed! Enter Passcode to bypass and add/edit team:");
+                const pass = prompt("🔒 Match deadline has passed! Enter Passcode to add/edit team:");
                 if (pass !== ADMIN_PASSCODE) {
-                    alert("❌ Incorrect Passcode! Changes cancelled.");
+                    alert("❌ Incorrect Passcode!");
                     return;
                 }
             }
@@ -380,9 +386,12 @@
                 if (msg) msg.innerText = '';
             }, 3000);
 
+            // Render local updates instantly
             updateDatalist();
             renderPlayerInputs();
             updateLeaderboard();
+            
+            // Push sync to cloud
             syncToFirebase();
         };
 
@@ -579,7 +588,7 @@
 
     <div class="container">
         
-        <!-- Add / Edit Team Form -->
+        <!-- Add / Edit Team -->
         <div class="card" id="teamFormCard">
             <h2>1. Add / Edit Friend's Team</h2>
             <datalist id="playerPool"></datalist>
@@ -588,7 +597,7 @@
             <input type="text" id="player2" list="playerPool" placeholder="Player 2">
             <input type="text" id="player3" list="playerPool" placeholder="Player 3">
             <input type="text" id="player4" list="playerPool" placeholder="Player 4">
-            <button type="button" id="submitBtn" onclick="window.addOrUpdateTeam(event)">Add / Update Team</button>
+            <button type="button" id="submitBtn" onclick="window.addOrUpdateTeam()">Add / Update Team</button>
             <p id="teamMsg" style="color: green; font-size: 14px; margin-top: 6px;"></p>
         </div>
 
