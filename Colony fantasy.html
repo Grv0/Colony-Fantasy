@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Colony Sattebaaz Champion</title>
+    <style>
+        :root {
+            --primary-color: #2e7d32;
+            --bg-color: #f1f8e9;
+            --card-bg: #ffffff;
+            --text-color: #333333;
+            --primary-gold: #ffd54f;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 0 0 40px 0;
+            text-align: center;
+        }
+        
+        /* Hero Cover Banner Header */
+        .hero-banner {
+            position: relative;
+            width: 100%;
+            height: 320px;
+            /* Make sure your image file is named 'cover.jpg' in the same folder */
+            background: linear-gradient(to bottom, rgba(0,0,0,0.3), rgba(0,0,0,0.7)), url('cover.jpg') center/cover no-repeat;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            align-items: center;
+            padding-bottom: 25px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+            margin-bottom: 25px;
+        }
+        .hero-banner h1 {
+            color: #ffffff;
+            font-size: 2.8rem;
+            margin: 0;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            text-shadow: 2px 2px 8px rgba(0,0,0,0.8);
+        }
+        .hero-banner p {
+            color: #f0f0f0;
+            margin: 8px 0 0 0;
+            font-size: 1rem;
+            text-shadow: 1px 1px 4px rgba(0,0,0,0.8);
+        }
+
+        .container {
+            max-width: 850px;
+            margin: 0 auto;
+            padding: 0 20px;
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 20px;
+        }
+        @media (min-width: 768px) {
+            .container {
+                grid-template-columns: 1fr 1fr;
+            }
+            .hero-banner {
+                height: 380px;
+            }
+            .hero-banner h1 {
+                font-size: 3.2rem;
+            }
+        }
+        .card {
+            background-color: var(--card-bg);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.08);
+        }
+        .card h2 {
+            margin-top: 0;
+            color: var(--primary-color);
+            border-bottom: 2px solid var(--primary-color);
+            padding-bottom: 10px;
+        }
+        input {
+            width: 90%;
+            padding: 10px;
+            margin: 8px 0;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            margin-top: 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            width: 90%;
+        }
+        button:hover {
+            background-color: #1b5e20;
+        }
+        .player-score-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            background: #f9f9f9;
+            padding: 10px 15px;
+            border-radius: 6px;
+        }
+        .player-score-row input {
+            width: 80px;
+            margin: 0;
+            text-align: center;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: var(--primary-color);
+            color: white;
+        }
+        .clickable-row {
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .clickable-row:hover {
+            background-color: #e8f5e9;
+        }
+        .winner {
+            background-color: #ffd54f !important;
+            font-weight: bold;
+        }
+        .winner:hover {
+            background-color: #ffca28 !important;
+        }
+        .team-details-container {
+            background-color: #fafafa;
+            padding: 10px;
+            border-radius: 6px;
+            font-size: 14px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            border: 1px dashed #ccc;
+        }
+        .team-details-container div {
+            background: #fff;
+            padding: 8px;
+            border-radius: 4px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            display: flex;
+            justify-content: space-between;
+        }
+        .hint {
+            font-size: 12px;
+            color: #555;
+            margin-top: -10px;
+            margin-bottom: 15px;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Cover Header Section -->
+    <div class="hero-banner">
+        <h1>Colony Sattebaaz Champion</h1>
+        <p>1 Run = 1 Point | Enter points once to update everywhere</p>
+    </div>
+
+    <div class="container">
+        <!-- Section 1: Add Friend & Players -->
+        <div class="card">
+            <h2>1. Add a Friend's Team</h2>
+            
+            <datalist id="playerPool"></datalist>
+
+            <input type="text" id="friendName" placeholder="Friend's Name (e.g., Gaurav)" required>
+            
+            <input type="text" id="player1" list="playerPool" placeholder="Player 1" required>
+            <input type="text" id="player2" list="playerPool" placeholder="Player 2" required>
+            <input type="text" id="player3" list="playerPool" placeholder="Player 3" required>
+            <input type="text" id="player4" list="playerPool" placeholder="Player 4" required>
+            
+            <button onclick="addTeam()">Add Team</button>
+            <p id="teamMsg" style="color: green; font-size: 14px;"></p>
+        </div>
+
+        <!-- Section 2: Leaderboard -->
+        <div class="card">
+            <h2>🏆 Leaderboard</h2>
+            <p class="hint">👆 Click on a friend's name to see their players and scores!</p>
+            <table id="leaderboardTable">
+                <thead>
+                    <tr>
+                        <th>Rank</th>
+                        <th>Friend Name</th>
+                        <th>Points</th>
+                    </tr>
+                </thead>
+                <tbody id="leaderboardBody">
+                    <tr><td colspan="3" style="text-align:center;">No teams added yet</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Section 3: Update Live Scores -->
+        <div class="card" style="grid-column: 1 / -1;">
+            <h2>2. Update Player Runs</h2>
+            <p style="font-size: 14px; color: #666;">Enter a score once. If multiple friends picked this player, they all get the points!</p>
+            <div id="playerScoresContainer">
+                <p>Add teams first to see the unique players here.</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let teams = [];
+        let uniquePlayers = {}; 
+        let expandedTeamName = null;
+
+        function formatName(name) {
+            return name.trim().toLowerCase().replace(/\s+/g, ' ');
+        }
+
+        function displayFormat(name) {
+            return name.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+        }
+
+        function addTeam() {
+            const name = document.getElementById('friendName').value.trim();
+            const p1 = formatName(document.getElementById('player1').value);
+            const p2 = formatName(document.getElementById('player2').value);
+            const p3 = formatName(document.getElementById('player3').value);
+            const p4 = formatName(document.getElementById('player4').value);
+
+            if (!name || !p1 || !p2 || !p3 || !p4) {
+                alert("Please fill in the friend's name and all 4 players.");
+                return;
+            }
+
+            const teamPlayers = [p1, p2, p3, p4];
+            teams.push({ name: name, players: teamPlayers });
+
+            teamPlayers.forEach(player => {
+                if (!(player in uniquePlayers)) {
+                    uniquePlayers[player] = 0; 
+                }
+            });
+
+            document.getElementById('friendName').value = '';
+            document.getElementById('player1').value = '';
+            document.getElementById('player2').value = '';
+            document.getElementById('player3').value = '';
+            document.getElementById('player4').value = '';
+
+            document.getElementById('teamMsg').innerText = `${name}'s team added!`;
+            setTimeout(() => document.getElementById('teamMsg').innerText = '', 3000);
+
+            updateDatalist();
+            renderPlayerInputs();
+            updateLeaderboard();
+        }
+
+        function updateDatalist() {
+            const dataList = document.getElementById('playerPool');
+            dataList.innerHTML = '';
+            
+            Object.keys(uniquePlayers).forEach(player => {
+                const option = document.createElement('option');
+                option.value = displayFormat(player);
+                dataList.appendChild(option);
+            });
+        }
+
+        function renderPlayerInputs() {
+            const container = document.getElementById('playerScoresContainer');
+            container.innerHTML = '';
+
+            const players = Object.keys(uniquePlayers);
+            if (players.length === 0) {
+                container.innerHTML = '<p>Add teams first to see the players here.</p>';
+                return;
+            }
+
+            players.forEach(player => {
+                const div = document.createElement('div');
+                div.className = 'player-score-row';
+                
+                div.innerHTML = `
+                    <span style="font-weight: bold;">🏏 ${displayFormat(player)}</span>
+                    <div>
+                        <label>Runs: </label>
+                        <input type="number" min="0" value="${uniquePlayers[player]}" oninput="updateScore('${player}', this.value)">
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function updateScore(playerName, runs) {
+            uniquePlayers[playerName] = parseInt(runs) || 0;
+            updateLeaderboard(); 
+        }
+
+        function toggleDetails(teamName) {
+            if (expandedTeamName === teamName) {
+                expandedTeamName = null;
+            } else {
+                expandedTeamName = teamName;
+            }
+            updateLeaderboard();
+        }
+
+        function updateLeaderboard() {
+            const tbody = document.getElementById('leaderboardBody');
+            tbody.innerHTML = '';
+
+            if (teams.length === 0) return;
+
+            let leaderboardData = teams.map(team => {
+                let totalScore = 0;
+                team.players.forEach(player => {
+                    totalScore += uniquePlayers[player];
+                });
+                return { name: team.name, score: totalScore, players: team.players };
+            });
+
+            leaderboardData.sort((a, b) => b.score - a.score);
+
+            leaderboardData.forEach((team, index) => {
+                const mainRow = document.createElement('tr');
+                mainRow.className = 'clickable-row';
+                if (index === 0 && team.score > 0) {
+                    mainRow.classList.add('winner');
+                }
+                
+                mainRow.onclick = () => toggleDetails(team.name);
+
+                const arrow = (expandedTeamName === team.name) ? '▼' : '▶';
+
+                mainRow.innerHTML = `
+                    <td>${index + 1}</td>
+                    <td>${arrow} ${team.name}</td>
+                    <td><strong>${team.score}</strong></td>
+                `;
+                tbody.appendChild(mainRow);
+
+                const detailsRow = document.createElement('tr');
+                
+                if (expandedTeamName === team.name) {
+                    detailsRow.style.display = 'table-row';
+                } else {
+                    detailsRow.style.display = 'none';
+                }
+
+                let detailsHTML = `<td colspan="3"><div class="team-details-container">`;
+                team.players.forEach(player => {
+                    detailsHTML += `
+                        <div>
+                            <span>${displayFormat(player)}</span>
+                            <strong>${uniquePlayers[player]}</strong>
+                        </div>
+                    `;
+                });
+                detailsHTML += `</div></td>`;
+                
+                detailsRow.innerHTML = detailsHTML;
+                tbody.appendChild(detailsRow);
+            });
+        }
+    </script>
+</body>
+</html>
