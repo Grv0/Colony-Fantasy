@@ -157,15 +157,15 @@
         }
     </style>
 
-    <!-- Firebase SDK Modules -->
+    <!-- Firebase Realtime Database SDK -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
-        // Your exact Firebase configuration keys extracted from the screenshot
         const firebaseConfig = {
             apiKey: "AIzaSyBFvBGfDHuQ7Lj0rTWK-ddfeG5NmJJw_F4",
             authDomain: "colony-fantasy.firebaseapp.com",
+            databaseURL: "https://colony-fantasy-default-rtdb.asia-southeast1.firebasedatabase.app",
             projectId: "colony-fantasy",
             storageBucket: "colony-fantasy.firebasestorage.app",
             messagingSenderId: "500949144909",
@@ -174,16 +174,17 @@
         };
 
         const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
+        const db = getDatabase(app);
 
         window.teams = [];
         window.uniquePlayers = {};
         window.expandedTeamName = null;
 
-        // Listen to live database changes in real time across all phones
-        onSnapshot(doc(db, "game", "liveData"), (docSnap) => {
-            if (docSnap.exists()) {
-                const data = docSnap.data();
+        // Sync with Realtime Database
+        const gameRef = ref(db, 'gameData');
+        onValue(gameRef, (snapshot) => {
+            const data = snapshot.val();
+            if (data) {
                 window.teams = data.teams || [];
                 window.uniquePlayers = data.uniquePlayers || {};
                 updateDatalist();
@@ -192,9 +193,8 @@
             }
         });
 
-        // Sync changes back to Firebase
-        async function syncToFirebase() {
-            await setDoc(doc(db, "game", "liveData"), {
+        function syncToFirebase() {
+            set(ref(db, 'gameData'), {
                 teams: window.teams,
                 uniquePlayers: window.uniquePlayers
             });
