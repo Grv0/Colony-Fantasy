@@ -198,7 +198,7 @@
         }
     </style>
 
-    <!-- Firebase Realtime Database Module -->
+    <!-- Firebase Realtime Database SDK -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
@@ -215,34 +215,41 @@
         };
 
         const app = initializeApp(firebaseConfig);
-        const db = getDatabase(app, "https://colony-fantasy-default-rtdb.asia-southeast1.firebasedatabase.app");
+        const db = getDatabase(app);
 
         const ADMIN_PASSCODE = "3737";
 
         window.teams = [];
         window.uniquePlayers = {};
-        window.matchHistory = []; // Fixed: Renamed from history to matchHistory
+        window.gameHistory = [];
         window.matchDeadline = "";
         window.expandedTeamName = null;
 
-        // Realtime Database Listener
+        // Force clear "Checking deadline..." display immediately
+        setTimeout(() => {
+            const timerEl = document.getElementById('lockTimerDisplay');
+            if (timerEl && timerEl.innerText.includes("Checking")) {
+                checkDeadlineStatus();
+            }
+        }, 1500);
+
+        // Realtime Listener
         const gameRef = ref(db, 'colonyGame');
         onValue(gameRef, (snapshot) => {
             const data = snapshot.val();
             if (data) {
                 window.teams = data.teams || [];
                 window.uniquePlayers = data.uniquePlayers || {};
-                window.matchHistory = data.matchHistory || [];
+                window.gameHistory = data.history || [];
                 window.matchDeadline = data.matchDeadline || "";
-            } else {
-                window.teams = [];
-                window.uniquePlayers = {};
-                window.matchHistory = [];
             }
             updateDatalist();
             renderPlayerInputs();
             updateLeaderboard();
             renderHistory();
+            checkDeadlineStatus();
+        }, (err) => {
+            console.error("Firebase Read Error:", err);
             checkDeadlineStatus();
         });
 
@@ -250,10 +257,10 @@
             set(ref(db, 'colonyGame'), {
                 teams: window.teams,
                 uniquePlayers: window.uniquePlayers,
-                matchHistory: window.matchHistory,
+                history: window.gameHistory,
                 matchDeadline: window.matchDeadline
             }).catch((err) => {
-                alert("Failed to sync to database: " + err.message);
+                alert("Database Sync Error: " + err.message);
             });
         }
 
@@ -299,9 +306,9 @@
         }
 
         window.setDeadline = function() {
-            const pass = prompt("🔑 Enter Admin Passcode to set/change deadline:");
+            const pass = prompt("🔑 Enter Admin Passcode to set deadline:");
             if (pass !== ADMIN_PASSCODE) {
-                alert("❌ Incorrect Passcode!");
+                alert("❌ Incorrect Admin Passcode!");
                 return;
             }
 
@@ -312,16 +319,13 @@
             }
             window.matchDeadline = input;
             syncToFirebase();
-            alert("Match deadline updated successfully!");
+            alert("Match deadline updated!");
         };
 
         window.addOrUpdateTeam = function() {
             if (isLocked()) {
-                const pass = prompt("🔒 Match deadline has passed! Enter Passcode to add/edit team:");
-                if (pass !== ADMIN_PASSCODE) {
-                    alert("❌ Incorrect Passcode!");
-                    return;
-                }
+                alert("🔒 Teams are locked! The match deadline has passed. Ask the admin if you need a change.");
+                return;
             }
 
             const name = document.getElementById('friendName').value.trim();
@@ -337,7 +341,7 @@
 
             const newPlayersSorted = [p1, p2, p3, p4].sort().join(',');
 
-            // Prevent duplicate team selection
+            // Prevent duplicate team selection (must differ in at least 1 player)
             const duplicateTeam = window.teams.find(t => {
                 if (t.name.toLowerCase() === name.toLowerCase()) return false;
                 const existingSorted = [...t.players].sort().join(',');
@@ -366,7 +370,6 @@
                 }
             });
 
-            // Clear inputs
             document.getElementById('friendName').value = '';
             document.getElementById('player1').value = '';
             document.getElementById('player2').value = '';
@@ -382,10 +385,15 @@
             updateDatalist();
             renderPlayerInputs();
             updateLeaderboard();
+
             syncToFirebase();
         };
 
         window.loadTeamForEdit = function(teamName) {
+            if (isLocked()) {
+                alert("🔒 Teams are locked! The match deadline has passed.");
+                return;
+            }
             const team = window.teams.find(t => t.name === teamName);
             if (!team) return;
 
@@ -394,7 +402,7 @@
             document.getElementById('player2').value = displayFormat(team.players[1] || '');
             document.getElementById('player3').value = displayFormat(team.players[2] || '');
             document.getElementById('player4').value = displayFormat(team.players[3] || '');
-            
+
             document.getElementById('submitBtn').innerText = `✏️ Save Edit for ${team.name}`;
             window.scrollTo({ top: 0, behavior: 'smooth' });
         };
@@ -463,17 +471,21 @@
 
             leaderboardData.sort((a, b) => b.score - a.score);
 
+            const locked = isLocked();
+
             leaderboardData.forEach((team, index) => {
                 const mainRow = document.createElement('tr');
                 mainRow.className = 'clickable-row';
                 if (index === 0 && team.score > 0) mainRow.classList.add('winner');
-                
+
                 mainRow.onclick = () => window.toggleDetails(team.name);
                 const arrow = (window.expandedTeamName === team.name) ? '▼' : '▶';
 
+                const editBtnHTML = !locked ? `<button class="edit-btn" onclick="event.stopPropagation(); window.loadTeamForEdit('${team.name}')">✏️ Edit</button>` : '';
+
                 mainRow.innerHTML = `
                     <td>${index + 1}</td>
-                    <td>${arrow} ${team.name} <button class="edit-btn" onclick="event.stopPropagation(); window.loadTeamForEdit('${team.name}')">✏️ Edit</button></td>
+                    <td>${arrow} ${team.name} ${editBtnHTML}</td>
                     <td><strong>${team.score}</strong></td>
                 `;
                 tbody.appendChild(mainRow);
@@ -491,7 +503,7 @@
                     `;
                 });
                 detailsHTML += `</div></td>`;
-                
+
                 detailsRow.innerHTML = detailsHTML;
                 tbody.appendChild(detailsRow);
             });
@@ -532,8 +544,8 @@
                 standings: leaderboardData
             };
 
-            if (!window.matchHistory) window.matchHistory = [];
-            window.matchHistory.unshift(archivedRecord);
+            if (!window.gameHistory) window.gameHistory = [];
+            window.gameHistory.unshift(archivedRecord);
 
             window.teams = [];
             window.uniquePlayers = {};
@@ -548,16 +560,16 @@
             if (!container) return;
             container.innerHTML = '';
 
-            if (!window.matchHistory || window.matchHistory.length === 0) {
+            if (!window.gameHistory || window.gameHistory.length === 0) {
                 container.innerHTML = '<p style="color:#777;">No previous match records found.</p>';
                 return;
             }
 
-            window.matchHistory.forEach(item => {
+            window.gameHistory.forEach(item => {
                 const div = document.createElement('div');
                 div.className = 'history-item';
                 let standingsList = item.standings.map((s, i) => `${i + 1}. ${s.name} (${s.score} pts)`).join(' | ');
-                
+
                 div.innerHTML = `
                     <h3>🏆 ${item.title} (${item.date})</h3>
                     <p style="margin: 4px 0;">👑 <strong>Winner:</strong> ${item.winner} (${item.topScore} pts)</p>
@@ -577,7 +589,7 @@
     </div>
 
     <div class="container">
-        
+
         <!-- Add / Edit Team -->
         <div class="card" id="teamFormCard">
             <h2>1. Add / Edit Friend's Team</h2>
@@ -594,7 +606,7 @@
         <!-- Leaderboard -->
         <div class="card">
             <h2>🏆 Live Leaderboard</h2>
-            <p class="hint">👆 Click friend name to expand details. Click "✏️ Edit" to change squad.</p>
+            <p class="hint">👆 Click friend name to expand details. Click "✏️ Edit" to change squad before deadline.</p>
             <table id="leaderboardTable">
                 <thead>
                     <tr>
