@@ -10,7 +10,6 @@
             --bg-color: #f1f8e9;
             --card-bg: #ffffff;
             --text-color: #333333;
-            --primary-gold: #ffd54f;
         }
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -20,13 +19,10 @@
             padding: 0 0 40px 0;
             text-align: center;
         }
-        
-        /* Hero Cover Banner Header */
         .hero-banner {
             position: relative;
             width: 100%;
             height: 320px;
-            /* Make sure your image file is named 'cover.jpg' in the same folder */
             background: linear-gradient(to bottom, rgba(0,0,0,0.3), rgba(0,0,0,0.7)), url('cover.jpg') center/cover no-repeat;
             display: flex;
             flex-direction: column;
@@ -50,7 +46,6 @@
             font-size: 1rem;
             text-shadow: 1px 1px 4px rgba(0,0,0,0.8);
         }
-
         .container {
             max-width: 850px;
             margin: 0 auto;
@@ -60,15 +55,9 @@
             gap: 20px;
         }
         @media (min-width: 768px) {
-            .container {
-                grid-template-columns: 1fr 1fr;
-            }
-            .hero-banner {
-                height: 380px;
-            }
-            .hero-banner h1 {
-                font-size: 3.2rem;
-            }
+            .container { grid-template-columns: 1fr 1fr; }
+            .hero-banner { height: 380px; }
+            .hero-banner h1 { font-size: 3.2rem; }
         }
         .card {
             background-color: var(--card-bg);
@@ -103,9 +92,7 @@
             font-weight: bold;
             width: 90%;
         }
-        button:hover {
-            background-color: #1b5e20;
-        }
+        button:hover { background-color: #1b5e20; }
         .player-score-row {
             display: flex;
             justify-content: space-between;
@@ -138,15 +125,10 @@
             cursor: pointer;
             transition: background-color 0.2s;
         }
-        .clickable-row:hover {
-            background-color: #e8f5e9;
-        }
+        .clickable-row:hover { background-color: #e8f5e9; }
         .winner {
             background-color: #ffd54f !important;
             font-weight: bold;
-        }
-        .winner:hover {
-            background-color: #ffca28 !important;
         }
         .team-details-container {
             background-color: #fafafa;
@@ -174,34 +156,206 @@
             font-style: italic;
         }
     </style>
+
+    <!-- Firebase SDK Modules -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        // Your exact Firebase configuration keys extracted from the screenshot
+        const firebaseConfig = {
+            apiKey: "AIzaSyBFvBGfDHuQ7Lj0rTWK-ddfeG5NmJJw_F4",
+            authDomain: "colony-fantasy.firebaseapp.com",
+            projectId: "colony-fantasy",
+            storageBucket: "colony-fantasy.firebasestorage.app",
+            messagingSenderId: "500949144909",
+            appId: "1:500949144909:web:a2debf30642d7349a49304",
+            measurementId: "G-RCKJYQ4932"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        window.teams = [];
+        window.uniquePlayers = {};
+        window.expandedTeamName = null;
+
+        // Listen to live database changes in real time across all phones
+        onSnapshot(doc(db, "game", "liveData"), (docSnap) => {
+            if (docSnap.exists()) {
+                const data = docSnap.data();
+                window.teams = data.teams || [];
+                window.uniquePlayers = data.uniquePlayers || {};
+                updateDatalist();
+                renderPlayerInputs();
+                updateLeaderboard();
+            }
+        });
+
+        // Sync changes back to Firebase
+        async function syncToFirebase() {
+            await setDoc(doc(db, "game", "liveData"), {
+                teams: window.teams,
+                uniquePlayers: window.uniquePlayers
+            });
+        }
+
+        function formatName(name) {
+            return name.trim().toLowerCase().replace(/\s+/g, ' ');
+        }
+
+        function displayFormat(name) {
+            return name.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+        }
+
+        window.addTeam = function() {
+            const name = document.getElementById('friendName').value.trim();
+            const p1 = formatName(document.getElementById('player1').value);
+            const p2 = formatName(document.getElementById('player2').value);
+            const p3 = formatName(document.getElementById('player3').value);
+            const p4 = formatName(document.getElementById('player4').value);
+
+            if (!name || !p1 || !p2 || !p3 || !p4) {
+                alert("Please fill in the friend's name and all 4 players.");
+                return;
+            }
+
+            const teamPlayers = [p1, p2, p3, p4];
+            window.teams.push({ name: name, players: teamPlayers });
+
+            teamPlayers.forEach(player => {
+                if (!(player in window.uniquePlayers)) {
+                    window.uniquePlayers[player] = 0;
+                }
+            });
+
+            document.getElementById('friendName').value = '';
+            document.getElementById('player1').value = '';
+            document.getElementById('player2').value = '';
+            document.getElementById('player3').value = '';
+            document.getElementById('player4').value = '';
+
+            document.getElementById('teamMsg').innerText = `${name}'s team added!`;
+            setTimeout(() => document.getElementById('teamMsg').innerText = '', 3000);
+
+            syncToFirebase();
+        };
+
+        function updateDatalist() {
+            const dataList = document.getElementById('playerPool');
+            dataList.innerHTML = '';
+            Object.keys(window.uniquePlayers).forEach(player => {
+                const option = document.createElement('option');
+                option.value = displayFormat(player);
+                dataList.appendChild(option);
+            });
+        }
+
+        function renderPlayerInputs() {
+            const container = document.getElementById('playerScoresContainer');
+            container.innerHTML = '';
+            const players = Object.keys(window.uniquePlayers);
+            if (players.length === 0) {
+                container.innerHTML = '<p>Add teams first to see the players here.</p>';
+                return;
+            }
+            players.forEach(player => {
+                const div = document.createElement('div');
+                div.className = 'player-score-row';
+                div.innerHTML = `
+                    <span style="font-weight: bold;">🏏 ${displayFormat(player)}</span>
+                    <div>
+                        <label>Runs: </label>
+                        <input type="number" min="0" value="${window.uniquePlayers[player]}" onchange="updateScore('${player}', this.value)">
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        window.updateScore = function(playerName, runs) {
+            window.uniquePlayers[playerName] = parseInt(runs) || 0;
+            syncToFirebase();
+        };
+
+        window.toggleDetails = function(teamName) {
+            window.expandedTeamName = (window.expandedTeamName === teamName) ? null : teamName;
+            updateLeaderboard();
+        };
+
+        function updateLeaderboard() {
+            const tbody = document.getElementById('leaderboardBody');
+            tbody.innerHTML = '';
+            if (window.teams.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;">No teams added yet</td></tr>';
+                return;
+            }
+
+            let leaderboardData = window.teams.map(team => {
+                let totalScore = 0;
+                team.players.forEach(player => {
+                    totalScore += window.uniquePlayers[player] || 0;
+                });
+                return { name: team.name, score: totalScore, players: team.players };
+            });
+
+            leaderboardData.sort((a, b) => b.score - a.score);
+
+            leaderboardData.forEach((team, index) => {
+                const mainRow = document.createElement('tr');
+                mainRow.className = 'clickable-row';
+                if (index === 0 && team.score > 0) mainRow.classList.add('winner');
+                
+                mainRow.onclick = () => window.toggleDetails(team.name);
+                const arrow = (window.expandedTeamName === team.name) ? '▼' : '▶';
+
+                mainRow.innerHTML = `
+                    <td>${index + 1}</td>
+                    <td>${arrow} ${team.name}</td>
+                    <td><strong>${team.score}</strong></td>
+                `;
+                tbody.appendChild(mainRow);
+
+                const detailsRow = document.createElement('tr');
+                detailsRow.style.display = (window.expandedTeamName === team.name) ? 'table-row' : 'none';
+
+                let detailsHTML = `<td colspan="3"><div class="team-details-container">`;
+                team.players.forEach(player => {
+                    detailsHTML += `
+                        <div>
+                            <span>${displayFormat(player)}</span>
+                            <strong>${window.uniquePlayers[player] || 0}</strong>
+                        </div>
+                    `;
+                });
+                detailsHTML += `</div></td>`;
+                
+                detailsRow.innerHTML = detailsHTML;
+                tbody.appendChild(detailsRow);
+            });
+        }
+    </script>
 </head>
 <body>
 
-    <!-- Cover Header Section -->
     <div class="hero-banner">
         <h1>Colony Sattebaaz Champion</h1>
-        <p>1 Run = 1 Point | Enter points once to update everywhere</p>
+        <p>1 Run = 1 Point | Real-Time Sync Enabled ⚡</p>
     </div>
 
     <div class="container">
-        <!-- Section 1: Add Friend & Players -->
         <div class="card">
             <h2>1. Add a Friend's Team</h2>
-            
             <datalist id="playerPool"></datalist>
-
             <input type="text" id="friendName" placeholder="Friend's Name (e.g., Gaurav)" required>
-            
             <input type="text" id="player1" list="playerPool" placeholder="Player 1" required>
             <input type="text" id="player2" list="playerPool" placeholder="Player 2" required>
             <input type="text" id="player3" list="playerPool" placeholder="Player 3" required>
             <input type="text" id="player4" list="playerPool" placeholder="Player 4" required>
-            
             <button onclick="addTeam()">Add Team</button>
             <p id="teamMsg" style="color: green; font-size: 14px;"></p>
         </div>
 
-        <!-- Section 2: Leaderboard -->
         <div class="card">
             <h2>🏆 Leaderboard</h2>
             <p class="hint">👆 Click on a friend's name to see their players and scores!</p>
@@ -219,171 +373,14 @@
             </table>
         </div>
 
-        <!-- Section 3: Update Live Scores -->
         <div class="card" style="grid-column: 1 / -1;">
             <h2>2. Update Player Runs</h2>
-            <p style="font-size: 14px; color: #666;">Enter a score once. If multiple friends picked this player, they all get the points!</p>
+            <p style="font-size: 14px; color: #666;">Enter a score once. Updates live on everyone's phones!</p>
             <div id="playerScoresContainer">
                 <p>Add teams first to see the unique players here.</p>
             </div>
         </div>
     </div>
 
-    <script>
-        let teams = [];
-        let uniquePlayers = {}; 
-        let expandedTeamName = null;
-
-        function formatName(name) {
-            return name.trim().toLowerCase().replace(/\s+/g, ' ');
-        }
-
-        function displayFormat(name) {
-            return name.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
-        }
-
-        function addTeam() {
-            const name = document.getElementById('friendName').value.trim();
-            const p1 = formatName(document.getElementById('player1').value);
-            const p2 = formatName(document.getElementById('player2').value);
-            const p3 = formatName(document.getElementById('player3').value);
-            const p4 = formatName(document.getElementById('player4').value);
-
-            if (!name || !p1 || !p2 || !p3 || !p4) {
-                alert("Please fill in the friend's name and all 4 players.");
-                return;
-            }
-
-            const teamPlayers = [p1, p2, p3, p4];
-            teams.push({ name: name, players: teamPlayers });
-
-            teamPlayers.forEach(player => {
-                if (!(player in uniquePlayers)) {
-                    uniquePlayers[player] = 0; 
-                }
-            });
-
-            document.getElementById('friendName').value = '';
-            document.getElementById('player1').value = '';
-            document.getElementById('player2').value = '';
-            document.getElementById('player3').value = '';
-            document.getElementById('player4').value = '';
-
-            document.getElementById('teamMsg').innerText = `${name}'s team added!`;
-            setTimeout(() => document.getElementById('teamMsg').innerText = '', 3000);
-
-            updateDatalist();
-            renderPlayerInputs();
-            updateLeaderboard();
-        }
-
-        function updateDatalist() {
-            const dataList = document.getElementById('playerPool');
-            dataList.innerHTML = '';
-            
-            Object.keys(uniquePlayers).forEach(player => {
-                const option = document.createElement('option');
-                option.value = displayFormat(player);
-                dataList.appendChild(option);
-            });
-        }
-
-        function renderPlayerInputs() {
-            const container = document.getElementById('playerScoresContainer');
-            container.innerHTML = '';
-
-            const players = Object.keys(uniquePlayers);
-            if (players.length === 0) {
-                container.innerHTML = '<p>Add teams first to see the players here.</p>';
-                return;
-            }
-
-            players.forEach(player => {
-                const div = document.createElement('div');
-                div.className = 'player-score-row';
-                
-                div.innerHTML = `
-                    <span style="font-weight: bold;">🏏 ${displayFormat(player)}</span>
-                    <div>
-                        <label>Runs: </label>
-                        <input type="number" min="0" value="${uniquePlayers[player]}" oninput="updateScore('${player}', this.value)">
-                    </div>
-                `;
-                container.appendChild(div);
-            });
-        }
-
-        function updateScore(playerName, runs) {
-            uniquePlayers[playerName] = parseInt(runs) || 0;
-            updateLeaderboard(); 
-        }
-
-        function toggleDetails(teamName) {
-            if (expandedTeamName === teamName) {
-                expandedTeamName = null;
-            } else {
-                expandedTeamName = teamName;
-            }
-            updateLeaderboard();
-        }
-
-        function updateLeaderboard() {
-            const tbody = document.getElementById('leaderboardBody');
-            tbody.innerHTML = '';
-
-            if (teams.length === 0) return;
-
-            let leaderboardData = teams.map(team => {
-                let totalScore = 0;
-                team.players.forEach(player => {
-                    totalScore += uniquePlayers[player];
-                });
-                return { name: team.name, score: totalScore, players: team.players };
-            });
-
-            leaderboardData.sort((a, b) => b.score - a.score);
-
-            leaderboardData.forEach((team, index) => {
-                const mainRow = document.createElement('tr');
-                mainRow.className = 'clickable-row';
-                if (index === 0 && team.score > 0) {
-                    mainRow.classList.add('winner');
-                }
-                
-                mainRow.onclick = () => toggleDetails(team.name);
-
-                const arrow = (expandedTeamName === team.name) ? '▼' : '▶';
-
-                mainRow.innerHTML = `
-                    <td>${index + 1}</td>
-                    <td>${arrow} ${team.name}</td>
-                    <td><strong>${team.score}</strong></td>
-                `;
-                tbody.appendChild(mainRow);
-
-                const detailsRow = document.createElement('tr');
-                
-                if (expandedTeamName === team.name) {
-                    detailsRow.style.display = 'table-row';
-                } else {
-                    detailsRow.style.display = 'none';
-                }
-
-                let detailsHTML = `<td colspan="3"><div class="team-details-container">`;
-                team.players.forEach(player => {
-                    detailsHTML += `
-                        <div>
-                            <span>${displayFormat(player)}</span>
-                            <strong>${uniquePlayers[player]}</strong>
-                        </div>
-                    `;
-                });
-                detailsHTML += `</div></td>`;
-                
-                detailsRow.innerHTML = detailsHTML;
-                tbody.appendChild(detailsRow);
-            });
-        }
-    </script>
 </body>
 </html>
