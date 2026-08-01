@@ -217,6 +217,9 @@
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
 
+        // --- ADMIN CONFIGURATION ---
+        const ADMIN_PASSCODE = "3737"; // 🔑 Passcode set to 3737
+
         window.teams = [];
         window.uniquePlayers = {};
         window.history = [];
@@ -257,11 +260,9 @@
 
         function checkDeadlineStatus() {
             const timerEl = document.getElementById('lockTimerDisplay');
-            const formSection = document.getElementById('teamFormCard');
 
             if (!window.matchDeadline) {
                 timerEl.innerHTML = "⏳ No match deadline set";
-                formSection.style.opacity = "1";
                 return;
             }
 
@@ -292,6 +293,12 @@
         }
 
         window.setDeadline = function() {
+            const pass = prompt("🔑 Enter Admin Passcode to set deadline:");
+            if (pass !== ADMIN_PASSCODE) {
+                alert("❌ Incorrect Admin Passcode!");
+                return;
+            }
+
             const input = document.getElementById('deadlineInput').value;
             if (!input) {
                 alert("Please pick a valid date and time.");
@@ -299,7 +306,7 @@
             }
             window.matchDeadline = input;
             syncToFirebase();
-            alert("Match deadline updated!");
+            alert("Match deadline updated successfully!");
         };
 
         window.addOrUpdateTeam = function(e) {
@@ -323,9 +330,9 @@
 
             const newPlayersSorted = [p1, p2, p3, p4].sort().join(',');
 
-            // Check if all 4 players match an existing team (excluding the team being edited)
+            // Prevent duplicate team selection (all 4 players identical to another registered team)
             const duplicateTeam = window.teams.find(t => {
-                if (t.name.toLowerCase() === name.toLowerCase()) return false; // Ignore current user if updating
+                if (t.name.toLowerCase() === name.toLowerCase()) return false;
                 const existingSorted = [...t.players].sort().join(',');
                 return existingSorted === newPlayersSorted;
             });
@@ -337,7 +344,6 @@
 
             const teamPlayers = [p1, p2, p3, p4];
 
-            // Check if updating existing team
             const existingIndex = window.teams.findIndex(t => t.name.toLowerCase() === name.toLowerCase());
 
             if (existingIndex !== -1) {
@@ -354,7 +360,6 @@
                 }
             });
 
-            // Reset Form Inputs
             document.getElementById('friendName').value = '';
             document.getElementById('player1').value = '';
             document.getElementById('player2').value = '';
@@ -490,15 +495,22 @@
             });
         }
 
-        window.archiveAndResetMatch = function() {
-            if (window.teams.length === 0) {
-                alert("There are no teams to save to history!");
+        window.startNewGame = function() {
+            const pass = prompt("🔑 Enter Admin Passcode to Start New Game:");
+            if (pass !== ADMIN_PASSCODE) {
+                alert("❌ Incorrect Admin Passcode!");
                 return;
             }
 
-            const matchTitle = prompt("Enter Match Title (e.g., Match 1 - IND vs PAK):");
+            if (window.teams.length === 0) {
+                alert("There are no teams in the current match to archive.");
+                return;
+            }
+
+            const matchTitle = prompt("Enter Match Name (e.g., Match 1 - IND vs PAK):");
             if (!matchTitle) return;
 
+            // Calculate winner
             let leaderboardData = window.teams.map(team => {
                 let totalScore = 0;
                 team.players.forEach(player => {
@@ -522,12 +534,13 @@
             if (!window.history) window.history = [];
             window.history.unshift(archivedRecord);
 
+            // Clear current game teams & players only
             window.teams = [];
             window.uniquePlayers = {};
             window.matchDeadline = "";
 
             syncToFirebase();
-            alert(`🎉 ${matchTitle} saved to history! App is ready for the next match.`);
+            alert(`🎉 ${matchTitle} archived into history! All teams cleared for the new game.`);
         };
 
         function renderHistory() {
@@ -565,6 +578,7 @@
 
     <div class="container">
         
+        <!-- Add / Edit Team -->
         <div class="card" id="teamFormCard">
             <h2>1. Add / Edit Friend's Team</h2>
             <datalist id="playerPool"></datalist>
@@ -577,6 +591,7 @@
             <p id="teamMsg" style="color: green; font-size: 14px; margin-top: 6px;"></p>
         </div>
 
+        <!-- Leaderboard -->
         <div class="card">
             <h2>🏆 Live Leaderboard</h2>
             <p class="hint">👆 Click friend name to expand details. Click "✏️ Edit" to change squad before deadline.</p>
@@ -594,6 +609,7 @@
             </table>
         </div>
 
+        <!-- Update Runs -->
         <div class="card full-width">
             <h2>2. Update Live Player Runs</h2>
             <p style="font-size: 13px; color: #666;">Scores typed here update instantly on every friend's phone.</p>
@@ -602,16 +618,18 @@
             </div>
         </div>
 
+        <!-- Admin Controls -->
         <div class="card full-width">
-            <h2>⚙️ Match Deadline & Reset Controls</h2>
+            <h2>⚙️ Admin Controls (Passcode Protected)</h2>
             <div style="display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; align-items: center;">
                 <input type="datetime-local" id="deadlineInput" style="max-width: 250px;">
-                <button type="button" class="secondary" onclick="window.setDeadline()" style="max-width: 200px; margin: 0;">Set Match Deadline</button>
+                <button type="button" class="secondary" onclick="window.setDeadline()" style="max-width: 200px; margin: 0;">Set Lock Deadline</button>
             </div>
             <hr style="margin: 20px 0; border: 0; border-top: 1px solid #eee;">
-            <button type="button" class="danger" onclick="window.archiveAndResetMatch()" style="max-width: 350px;">📜 Archive Match & Start New Game</button>
+            <button type="button" class="danger" onclick="window.startNewGame()" style="max-width: 350px;">🚀 Start New Game (Archive & Clear Teams)</button>
         </div>
 
+        <!-- History Tab -->
         <div class="card full-width">
             <h2>📜 Past Matches History</h2>
             <div id="historyContainer">
