@@ -224,6 +224,8 @@
         window.gameHistory = [];
         window.matchDeadline = "";
         window.expandedTeamName = null;
+        window.cricketApiKey = "";
+        window.liveMatchesCache = [];
 
         // Force clear "Checking deadline..." display immediately
         setTimeout(() => {
@@ -242,6 +244,7 @@
                 window.uniquePlayers = data.uniquePlayers || {};
                 window.gameHistory = data.history || [];
                 window.matchDeadline = data.matchDeadline || "";
+                window.cricketApiKey = data.cricketApiKey || "";
             }
             updateDatalist();
             renderPlayerInputs();
@@ -258,7 +261,8 @@
                 teams: window.teams,
                 uniquePlayers: window.uniquePlayers,
                 history: window.gameHistory,
-                matchDeadline: window.matchDeadline
+                matchDeadline: window.matchDeadline,
+                cricketApiKey: window.cricketApiKey
             }).catch((err) => {
                 alert("Database Sync Error: " + err.message);
             });
@@ -370,6 +374,7 @@
                 }
             });
 
+            // Clear inputs
             document.getElementById('friendName').value = '';
             document.getElementById('player1').value = '';
             document.getElementById('player2').value = '';
@@ -382,10 +387,12 @@
                 if (msg) msg.innerText = '';
             }, 3000);
 
+            // Render local updates instantly
             updateDatalist();
             renderPlayerInputs();
             updateLeaderboard();
 
+            // Push sync to cloud
             syncToFirebase();
         };
 
@@ -555,6 +562,167 @@
             alert(`🎉 ${matchTitle} archived into history! All teams cleared for the new game.`);
         };
 
+        // ===== Cricket API Integration =====
+
+        window.setCricketApiKey = function() {
+            const pass = prompt("🔑 Enter Admin Passcode to set Cricket API Key:");
+            if (pass !== ADMIN_PASSCODE) {
+                alert("❌ Incorrect Admin Passcode!");
+                return;
+            }
+            const key = prompt("Paste your CricketData.org API key:", window.cricketApiKey || "");
+            if (!key) return;
+            window.cricketApiKey = key.trim();
+            syncToFirebase();
+            alert("✅ Cricket API key saved!");
+        };
+
+        function normalizePlayerName(name) {
+            return name.toLowerCase().replace(/[^a-z\s]/g, '').replace(/\s+/g, ' ').trim();
+        }
+
+        // Try to find the best-matching stored player key for a given official player name
+        function findMatchingStoredPlayer(officialName) {
+            const officialNorm = normalizePlayerName(officialName);
+            const officialWords = officialNorm.split(' ').filter(w => w.length > 1);
+
+            let bestMatch = null;
+            let bestScore = 0;
+
+            Object.keys(window.uniquePlayers).forEach(storedKey => {
+                const storedNorm = normalizePlayerName(storedKey);
+                if (storedNorm === officialNorm) {
+                    bestMatch = storedKey;
+                    bestScore = 999;
+                    return;
+                }
+                const storedWords = storedNorm.split(' ').filter(w => w.length > 1);
+                let overlap = 0;
+                storedWords.forEach(sw => {
+                    if (officialWords.some(ow => ow === sw || ow.startsWith(sw) || sw.startsWith(ow))) {
+                        overlap++;
+                    }
+                });
+                if (overlap > bestScore) {
+                    bestScore = overlap;
+                    bestMatch = storedKey;
+                }
+            });
+
+            return bestScore > 0 ? bestMatch : null;
+        }
+
+        window.loadLiveMatches = async function() {
+            if (!window.cricketApiKey) {
+                alert("⚠️ Please set your Cricket API Key first (Admin Controls).");
+                return;
+            }
+            const statusEl = document.getElementById('cricketStatus');
+            if (statusEl) statusEl.innerText = "⏳ Loading live matches...";
+
+            try {
+                const url = `https://api.cricapi.com/v1/currentMatches?apikey=${encodeURIComponent(window.cricketApiKey)}&offset=0`;
+                const res = await fetch(url);
+                const data = await res.json();
+
+                if (data.status && data.status !== "success") {
+                    throw new Error(data.status + ": " + (data.reason || "Unknown API error"));
+                }
+
+                const matches = data.data || [];
+                window.liveMatchesCache = matches;
+
+                const select = document.getElementById('matchSelect');
+                if (!select) return;
+                select.innerHTML = '<option value="">-- Select a match --</option>';
+
+                if (matches.length === 0) {
+                    select.innerHTML = '<option value="">No live/recent matches found</option>';
+                } else {
+                    matches.forEach((m, i) => {
+                        const opt = document.createElement('option');
+                        opt.value = m.id;
+                        const statusTag = m.matchStarted && !m.matchEnded ? " 🔴 LIVE" : (m.matchEnded ? " (Ended)" : " (Upcoming)");
+                        opt.innerText = `${m.name || (m.teams ? m.teams.join(' vs ') : 'Match ' + i)}${statusTag}`;
+                        select.appendChild(opt);
+                    });
+                }
+
+                if (statusEl) statusEl.innerText = `✅ Loaded ${matches.length} matches.`;
+            } catch (err) {
+                console.error("Cricket API Error:", err);
+                if (statusEl) statusEl.innerText = "❌ Failed to load matches: " + err.message;
+                alert("Failed to load live matches: " + err.message + "\n\nCheck your API key is correct and you haven't hit your daily hit limit.");
+            }
+        };
+
+        window.fetchAndApplyScore = async function() {
+            if (!window.cricketApiKey) {
+                alert("⚠️ Please set your Cricket API Key first (Admin Controls).");
+                return;
+            }
+            const select = document.getElementById('matchSelect');
+            const matchId = select ? select.value : "";
+            if (!matchId) {
+                alert("Please select a match first.");
+                return;
+            }
+
+            const statusEl = document.getElementById('cricketStatus');
+            if (statusEl) statusEl.innerText = "⏳ Fetching scorecard...";
+
+            try {
+                const url = `https://api.cricapi.com/v1/match_scorecard?apikey=${encodeURIComponent(window.cricketApiKey)}&id=${encodeURIComponent(matchId)}`;
+                const res = await fetch(url);
+                const data = await res.json();
+
+                if (data.status && data.status !== "success") {
+                    throw new Error(data.status + ": " + (data.reason || "Unknown API error"));
+                }
+
+                const scorecard = data.data && data.data.scorecard ? data.data.scorecard : [];
+                if (scorecard.length === 0) {
+                    throw new Error("No scorecard data available yet for this match.");
+                }
+
+                const matchedPlayers = [];
+                const unmatchedPlayers = [];
+
+                scorecard.forEach(innings => {
+                    const batting = innings.batting || innings.batsman || [];
+                    batting.forEach(b => {
+                        const officialName = b.batsman ? b.batsman.name : (b.name || "");
+                        const runs = parseInt(b.r ?? b.runs ?? 0) || 0;
+                        if (!officialName) return;
+
+                        const storedKey = findMatchingStoredPlayer(officialName);
+                        if (storedKey) {
+                            window.uniquePlayers[storedKey] = runs;
+                            matchedPlayers.push(`${officialName} → ${storedKey} (${runs} runs)`);
+                        } else {
+                            unmatchedPlayers.push(officialName);
+                        }
+                    });
+                });
+
+                renderPlayerInputs();
+                updateLeaderboard();
+                syncToFirebase();
+
+                let msg = `✅ Updated ${matchedPlayers.length} player(s) automatically.`;
+                if (unmatchedPlayers.length > 0) {
+                    const uniqueUnmatched = [...new Set(unmatchedPlayers)];
+                    msg += `\n\n⚠️ Could not match ${uniqueUnmatched.length} player(s) — update manually:\n${uniqueUnmatched.join(', ')}`;
+                }
+                if (statusEl) statusEl.innerText = `✅ Score applied at ${new Date().toLocaleTimeString()}`;
+                alert(msg);
+            } catch (err) {
+                console.error("Cricket API Error:", err);
+                if (statusEl) statusEl.innerText = "❌ Failed to fetch score: " + err.message;
+                alert("Failed to fetch score: " + err.message);
+            }
+        };
+
         function renderHistory() {
             const container = document.getElementById('historyContainer');
             if (!container) return;
@@ -639,6 +807,22 @@
             </div>
             <hr style="margin: 20px 0; border: 0; border-top: 1px solid #eee;">
             <button type="button" class="danger" onclick="window.startNewGame()" style="max-width: 350px;">🚀 Start New Game (Archive & Clear Teams)</button>
+        </div>
+
+        <!-- Cricket API Auto-Fetch -->
+        <div class="card full-width">
+            <h2>🏏 Auto-Fetch Live Score (Admin)</h2>
+            <p class="hint">Uses CricketData.org — set your key once, then load matches and fetch scores. Free tier: 100 hits/day, so fetch every 15-20 mins, not every second.</p>
+            <button type="button" class="secondary" onclick="window.setCricketApiKey()" style="max-width: 250px; margin: 6px auto;">🔑 Set Cricket API Key</button>
+            <br>
+            <button type="button" onclick="window.loadLiveMatches()" style="max-width: 250px; margin: 6px auto;">📡 Load Live Matches</button>
+            <br>
+            <select id="matchSelect" style="max-width: 90%;">
+                <option value="">-- Load matches first --</option>
+            </select>
+            <br>
+            <button type="button" onclick="window.fetchAndApplyScore()" style="max-width: 280px; margin: 6px auto; background-color:#1565c0;">⚡ Fetch & Apply Score</button>
+            <p id="cricketStatus" style="font-size: 13px; color: #555; margin-top: 10px;"></p>
         </div>
 
         <!-- History Tab -->
